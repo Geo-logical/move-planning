@@ -10,7 +10,7 @@ import json
 # ----------------------------
 initial_data = [
     {
-        "Name": "Sofa",
+        "Name": "desk",
         "Category": "furniture",
         "Assigned Owner": "Andy",
         "Notes": "Living room sofa",
