@@ -524,12 +524,25 @@ def update_intervals(n_clicks, existing_children):
     
     intervals = existing_children if existing_children else []
     
+    # Default to today
+    default_date = pd.to_datetime("today").date()
+    # If there are existing intervals, use the last interval's end date
+    if intervals:
+        try:
+            last_interval = intervals[-1]
+            # The end date picker is the 4th child in the Div
+            last_end_date = last_interval['props']['children'][3]['props']['date']
+            if last_end_date:
+                default_date = pd.to_datetime(last_end_date).date()
+        except Exception as e:
+            pass  # fallback to today if anything goes wrong
+
     new_interval = html.Div([
         dbc.Label(f"Interval {n_clicks}:", style={'color': DARK_THEME['text']}),
         dcc.Dropdown(
             id={"type": "interval-location", "index": n_clicks-1},
             options=[{"label": l, "value": l} for l in default_locations],
-            value=default_locations[0],
+            value=default_locations[3],
             style={
                 'backgroundColor': '#f1efee',
                 'color': '#1a0b05',
@@ -538,15 +551,17 @@ def update_intervals(n_clicks, existing_children):
         ),
         dcc.DatePickerSingle(
             id={"type": "interval-start", "index": n_clicks-1},
-            date=pd.to_datetime("today").date(),
-            style={'marginBottom': "5px"}
+            date=default_date,
+            style={'marginBottom': "5px"},
+            className="dark-theme-datepicker"
         ),
         dcc.DatePickerSingle(
             id={"type": "interval-end", "index": n_clicks-1},
-            date=pd.to_datetime("today").date(),
-            style={'marginBottom': "5px"}
+            date=default_date,  # Set to same as start date
+            style={'marginBottom': "5px"},
+            className="dark-theme-datepicker"
         )
-    ], className="mb-3")
+    ], className="mb-3", style={'backgroundColor': DARK_THEME['background']})
     
     if isinstance(intervals, list):
         intervals.append(new_interval)
