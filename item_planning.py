@@ -207,21 +207,21 @@ db = MoveDatabase()
 initial_data = db.get_all_items()
 
 default_categories = [
-    "Furniture", "Kitchen", "Bed and Bath", "Rec",
-    "Tools", "Work", "Eris stuff", "Kilo stuff", "family stuff"
+    "Bed and Bath", "Eris stuff", "Family stuff", "Furniture",
+    "Kilo stuff", "Kitchen", "Rec", "Tools", "Work"
 ]
 default_locations = [
-    "Hawaii", "Connecticut", "Sydney",
-    "Uhaul Shipping Container", "Sold", "Trash/Donate", "California", "Baltimore",
-    "Uncertain", "In-Transit"
+    "Baltimore", "California", "Connecticut", "Hawaii",
+    "In-Transit", "Sold", "Sydney", "Trash/Donate",
+    "Uhaul Container", "Uncertain"
 ]
 #d85413
 # Add this near your other default settings at the top of the file
 location_colors = {
-    "Hawaii": "#FF9999",
+    "Hawaii": "#2c02e8",
     "Connecticut": "#66B2FF",
     "Sydney": "#99FF99",
-    "Uhaul shipping container": "#FFCC99",
+    "Uhaul Container": "#ff6418",
     "Sold": "#170215",
     "Trash/Donate": "#808080",
     "California": "#FFB366",
@@ -231,15 +231,15 @@ location_colors = {
 }
 
 category_colors = {
-    "furniture": "#FFB6C1",
-    "kitchen": "#98FB98",
-    "bed and bath": "#87CEEB",
-    "recreation": "#DDA0DD",
-    "tools": "#F0E68C",
-    "work stuff": "#E6E6FA",
+    "Bed and Bath": "#87CEEB",
     "Eris stuff": "#FFB347",
+    "Family stuff": "#F08080",
+    "Furniture": "#FFB6C1",
     "Kilo stuff": "#87CEFA",
-    "family stuff": "#F08080"
+    "Kitchen": "#98FB98",
+    "Rec": "#DDA0DD",
+    "Tools": "#F0E68C",
+    "Work": "#E6E6FA"
 }
 
 owner_colors = {
@@ -248,104 +248,201 @@ owner_colors = {
     "NA": "#A9A9A9"
 }
 
-# ----------------------------
-# Initialize the Dash app
-# ----------------------------
+# Define your dark theme
+DARK_THEME = {
+    'background': '#222222',
+    'text': '#ffffff',
+    'secondary-background': '#333333',
+    'border': '#444444'
+}
+
+# Initialize the app
 app = dash.Dash(
     __name__,
-    external_stylesheets=[dbc.themes.BOOTSTRAP],
+    external_stylesheets=[dbc.themes.DARKLY],
     suppress_callback_exceptions=True,
     assets_folder='assets',
     serve_locally=True
 )
+
+# Now set the index_string after app is created
+app.index_string = '''
+<!DOCTYPE html>
+<html>
+    <head>
+        {%metas%}
+        <title>{%title%}</title>
+        {%favicon%}
+        {%css%}
+        <style>
+            .dark-dropdown .Select-menu-outer {
+                background-color: #222222 !important;
+                color: white !important;
+            }
+            .dark-dropdown .Select-option {
+                background-color: #222222 !important;
+                color: white !important;
+            }
+            .dark-dropdown .Select-option:hover {
+                background-color: #444444 !important;
+            }
+            .dark-dropdown .Select-value-label {
+                color: white !important;
+            }
+            .dark-dropdown .Select-control {
+                background-color: #222222 !important;
+                border-color: #444444 !important;
+            }
+            .dark-dropdown .Select-placeholder {
+                color: #cccccc !important;
+            }
+        </style>
+    </head>
+    <body>
+        {%app_entry%}
+        <footer>
+            {%config%}
+            {%scripts%}
+            {%renderer%}
+        </footer>
+    </body>
+</html>
+'''
+
 app.title = "Move Tracking Dashboard"
 
 app.layout = dbc.Container([
     dcc.Store(id='edit-mode-store', data=False),
     
-    html.H1("Move Tracking Dashboard", style={"textAlign": "center", "marginTop": "20px"}),
+    html.H1("Move Tracking Dashboard", 
+            style={
+                "textAlign": "center", 
+                "marginTop": "20px",
+                "color": DARK_THEME['text']
+            }),
     
     dcc.Tabs([
-        dcc.Tab(label="Item Management", children=[
-            html.Div([
-                html.Br(),
-                dbc.Button("Add New Task", id="open-modal", color="secondary", n_clicks=0),
-                html.Br(), html.Br(),
-                dash_table.DataTable(
-                    id="tasks-table",
-                    columns=[
-                        {"name": "Actions", "id": "actions", "presentation": "markdown"},
-                        {"name": "Name", "id": "Name", "editable": True},
-                        {"name": "Category", "id": "Category", "editable": True, "presentation": "dropdown"},
-                        {"name": "Assigned Owner", "id": "Assigned Owner", "editable": True},
-                        {"name": "Notes", "id": "Notes", "editable": True},
-                        {"name": "Intervals", "id": "Intervals", "editable": False}
-                    ],
-                    data=[{
-                        "actions": "✏️",
-                        **row
-                    } for row in initial_data],
-                    row_deletable=True,
-                    sort_action="native",
-                    dropdown={
-                        "Category": {"options": [{"label": c, "value": c} for c in default_categories]}
-                    },
-                    style_table={"overflowX": "auto"},
-                    style_cell={"fontFamily": "Arial, sans-serif", "padding": "5px"}
-                )
-            ])
-        ]),
+        dcc.Tab(
+            label="Item Management",
+            style={'backgroundColor': DARK_THEME['background'], 'color': DARK_THEME['text']},
+            selected_style={'backgroundColor': DARK_THEME['secondary-background'], 'color': DARK_THEME['text']},
+            children=[
+                html.Div([
+                    html.Br(),
+                    dbc.Button("Add New Task", id="open-modal", color="primary", n_clicks=0),
+                    html.Br(), html.Br(),
+    dash_table.DataTable(
+        id="tasks-table",
+                        style_data={
+                            'backgroundColor': DARK_THEME['background'],
+                            'color': DARK_THEME['text']
+                        },
+                        style_header={
+                            'backgroundColor': DARK_THEME['secondary-background'],
+                            'color': DARK_THEME['text'],
+                            'fontWeight': 'bold'
+                        },
+                        style_cell={
+                            'backgroundColor': DARK_THEME['background'],
+                            'color': DARK_THEME['text'],
+                            'border': f'1px solid {DARK_THEME["border"]}'
+                        },
+                        style_table={
+                            'overflowX': 'auto'
+                        },
+        columns=[
+                            {"name": "Actions", "id": "actions", "presentation": "markdown"},
+            {"name": "Name", "id": "Name", "editable": True},
+            {"name": "Category", "id": "Category", "editable": True, "presentation": "dropdown"},
+            {"name": "Assigned Owner", "id": "Assigned Owner", "editable": True},
+            {"name": "Notes", "id": "Notes", "editable": True},
+                            {"name": "Intervals", "id": "Intervals", "editable": False}
+                        ],
+                        data=[{
+                            "actions": "✏️",
+                            **row
+                        } for row in initial_data],
+        row_deletable=True,
+        sort_action="native",
+        dropdown={
+            "Category": {"options": [{"label": c, "value": c} for c in default_categories]}
+                        }
+                    )
+                ])
+            ]
+        ),
         
-        dcc.Tab(label="Timeline View", children=[
-            html.Div([
-                html.Br(),
-                dbc.Row([
-                    dbc.Col([
-                        dbc.Label("Color By:"),
-                        dcc.Dropdown(
-                            id="color-by-dropdown",
-                            options=[
-                                {"label": "Location", "value": "Location"},
-                                {"label": "Category", "value": "Category"},
-                                {"label": "Assigned Owner", "value": "Assigned Owner"}
-                            ],
-                            value="Location",
-                            clearable=False
-                        )
-                    ], width=3)
-                ]),
-                html.Br(),
-                dcc.Graph(id="gantt-chart")
-            ])
-        ]),
+        dcc.Tab(
+            label="Timeline View",
+            style={'backgroundColor': DARK_THEME['background'], 'color': DARK_THEME['text']},
+            selected_style={'backgroundColor': DARK_THEME['secondary-background'], 'color': DARK_THEME['text']},
+            children=[
+                html.Div([
+                    html.Br(),
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Label("Color By:", style={'color': DARK_THEME['text']}),
+                            dcc.Dropdown(
+                                id="color-by-dropdown",
+                                options=[
+                                    {"label": "Location", "value": "Location"},
+                                    {"label": "Category", "value": "Category"},
+                                    {"label": "Assigned Owner", "value": "Assigned Owner"}
+                                ],
+                                value="Location",
+                                clearable=False,
+                                style={
+                                    'backgroundColor': DARK_THEME['background'],
+                                    'color': DARK_THEME['text'],
+                                    'option': {'backgroundColor': DARK_THEME['background'], 'color': DARK_THEME['text']}
+                                },
+                            )
+                        ], width=3)
+                    ]),
+    html.Br(),
+                    dcc.Graph(id="gantt-chart")
+                ])
+            ]
+        ),
         
-        dcc.Tab(label="Notes", children=[
-            html.Div([
-                html.Br(),
-                dbc.Row([
-                    dbc.Col([
-                        dbc.Card([
-                            dbc.CardHeader("General Notes"),
-                            dbc.CardBody([
-                                dbc.Textarea(
-                                    id="general-notes",
-                                    placeholder="Enter general notes here...",
-                                    style={"height": "300px"}
-                                ),
-                                html.Br(),
-                                dbc.Button("Save Notes", id="save-notes", color="primary")
+        dcc.Tab(
+            label="Notes",
+            style={'backgroundColor': DARK_THEME['background'], 'color': DARK_THEME['text']},
+            selected_style={'backgroundColor': DARK_THEME['secondary-background'], 'color': DARK_THEME['text']},
+            children=[
+                html.Div([
+                    html.Br(),
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Card([
+                                dbc.CardHeader("General Notes", 
+                                             style={'backgroundColor': DARK_THEME['secondary-background'],
+                                                    'color': DARK_THEME['text']}),
+                                dbc.CardBody([
+                                    dbc.Textarea(
+                                        id="general-notes",
+                                        placeholder="Enter general notes here...",
+                                        style={
+                                            "height": "300px",
+                                            "backgroundColor": DARK_THEME['background'],
+                                            "color": DARK_THEME['text']
+                                        }
+                                    ),
+                                    html.Br(),
+                                    dbc.Button("Save Notes", id="save-notes", color="primary")
+                                ], style={'backgroundColor': DARK_THEME['background']})
                             ])
                         ])
                     ])
                 ])
-            ])
-        ])
-    ]),
+            ]
+        )
+    ], style={'color': DARK_THEME['text']}),
     
     # Modal for data entry
     dbc.Modal(
         [
-            dbc.ModalHeader("Add New Task"),
+            dbc.ModalHeader("Add New Task", style={'backgroundColor': DARK_THEME['secondary-background'], 'color': '#1a0b05'}),
             dbc.ModalBody([
                 # Standard fields
                 html.Div([
@@ -358,13 +455,35 @@ app.layout = dbc.Container([
                     dcc.Dropdown(
                         id="input-category",
                         options=[{"label": c, "value": c} for c in default_categories],
-                        value=default_categories[0]
+                        value=default_categories[0],
+                        style={
+                            'backgroundColor': '#ffffff',
+                            'color': '#1a0b05',  # This makes the text light
+                            'borderColor': DARK_THEME['border']
+                        }
                     )
                 ], className="mb-3"),
                 
                 html.Div([
-                    dbc.Label("Assigned Owner:"),
-                    dbc.Input(id="input-owner", type="text", placeholder="Name for who's stuff or responsibility, nothing is fine too.")
+                    dbc.Label("Assigned Owner:", style={'color': DARK_THEME['text']}),
+                    dcc.Dropdown(
+                        id="input-owner",
+                        options=[
+                            {"label": "Andy", "value": "Andy"},
+                            {"label": "Lucia", "value": "Lucia"},
+                            {"label": "NA", "value": "NA"}
+                        ],
+                        value="NA",
+                        placeholder="Select or type owner",
+                        clearable=True,
+                        searchable=True,
+                        style={
+                            'backgroundColor': '#ffffff',
+                            'color': '#1a0b05',  # This makes the text light
+                            'borderColor': DARK_THEME['border']
+                        },
+                        #className='dark-dropdown'
+                    )
                 ], className="mb-3"),
                 
                 html.Div([
@@ -381,59 +500,51 @@ app.layout = dbc.Container([
                 # - Location Dropdown
                 # - Start Date Picker
                 # - End Date Picker
-            ]),
+            ], style={'backgroundColor': DARK_THEME['background'], 'color': DARK_THEME['text']}),
             dbc.ModalFooter([
                 dbc.Button("Submit", id="submit-button", color="success", n_clicks=0),
                 dbc.Button("Close", id="close-modal", color="secondary", className="ms-2", n_clicks=0)
-            ])
+            ], style={'backgroundColor': DARK_THEME['secondary-background']})
         ],
         id="modal",
         is_open=False
     )
-], fluid=True)
+], fluid=True, style={'backgroundColor': DARK_THEME['background'], 'minHeight': '100vh'})
 
 # Separate callback for handling intervals
 @app.callback(
     Output("intervals-container", "children", allow_duplicate=True),
     Input("add-interval", "n_clicks"),
-    [State("intervals-container", "children"),
-     State("edit-mode-store", "data")],
+    State("intervals-container", "children"),
     prevent_initial_call=True
 )
-def update_intervals(n_clicks, existing_children, is_edit_mode):
+def update_intervals(n_clicks, existing_children):
     if n_clicks == 0:
         return []
     
     intervals = existing_children if existing_children else []
     
-    # Get the last interval's end date if it exists
-    default_start_date = pd.to_datetime("today").date()
-    if isinstance(intervals, list) and intervals:
-        try:
-            last_interval = intervals[-1]
-            last_end_date = last_interval['props']['children'][3]['props']['date']
-            if last_end_date:
-                default_start_date = pd.to_datetime(last_end_date).date()
-        except (KeyError, IndexError):
-            pass
-    
     new_interval = html.Div([
-        dbc.Label(f"Interval {n_clicks}:"),
+        dbc.Label(f"Interval {n_clicks}:", style={'color': DARK_THEME['text']}),
         dcc.Dropdown(
             id={"type": "interval-location", "index": n_clicks-1},
             options=[{"label": l, "value": l} for l in default_locations],
             value=default_locations[0],
-            style={"marginBottom": "5px"}
+            style={
+                'backgroundColor': '#f1efee',
+                'color': '#1a0b05',
+                'borderColor': DARK_THEME['border']
+            }
         ),
         dcc.DatePickerSingle(
             id={"type": "interval-start", "index": n_clicks-1},
-            date=default_start_date,
-            style={"marginBottom": "5px"}
+            date=pd.to_datetime("today").date(),
+            style={'marginBottom': "5px"}
         ),
         dcc.DatePickerSingle(
             id={"type": "interval-end", "index": n_clicks-1},
-            date=default_start_date,
-            style={"marginBottom": "5px"}
+            date=pd.to_datetime("today").date(),
+            style={'marginBottom': "5px"}
         )
     ], className="mb-3")
     
@@ -447,7 +558,7 @@ def update_intervals(n_clicks, existing_children, is_edit_mode):
 # Callback to handle modal opening/closing and form population
 @app.callback(
     [
-        Output("modal", "is_open"),
+    Output("modal", "is_open"),
         Output("input-name", "value"),
         Output("input-category", "value"),
         Output("input-owner", "value"),
@@ -458,7 +569,7 @@ def update_intervals(n_clicks, existing_children, is_edit_mode):
     ],
     [
         Input("open-modal", "n_clicks"),
-        Input("close-modal", "n_clicks"),
+     Input("close-modal", "n_clicks"),
         Input("submit-button", "n_clicks"),
         Input("tasks-table", "active_cell")
     ],
@@ -496,24 +607,39 @@ def handle_modal_state(n_open, n_close, n_submit, active_cell, data, is_open):
         interval_components = []
         for i, interval in enumerate(intervals):
             interval_component = html.Div([
-                dbc.Label(f"Interval {i+1}:"),
-                dcc.Dropdown(
-                    id={"type": "interval-location", "index": i},
-                    options=[{"label": l, "value": l} for l in default_locations],
+            dbc.Label(f"Interval {i+1}:"),
+            dcc.Dropdown(
+                id={"type": "interval-location", "index": i},
+                options=[{"label": l, "value": l} for l in default_locations],
                     value=interval["Location"],
-                    style={"marginBottom": "5px"}
-                ),
-                dcc.DatePickerSingle(
-                    id={"type": "interval-start", "index": i},
+                style={
+                    "marginBottom": "5px",
+                    'backgroundColor': DARK_THEME['background'],
+                    'color': DARK_THEME['text'],
+                    'option': {'backgroundColor': DARK_THEME['background'], 'color': DARK_THEME['text']}
+                }
+            ),
+            dcc.DatePickerSingle(
+                id={"type": "interval-start", "index": i},
                     date=interval["Start"],
-                    style={"marginBottom": "5px"}
-                ),
-                dcc.DatePickerSingle(
-                    id={"type": "interval-end", "index": i},
+                style={
+                    "marginBottom": "5px",
+                    'backgroundColor': DARK_THEME['background'],
+                    'color': DARK_THEME['text'],
+                    'option': {'backgroundColor': DARK_THEME['background'], 'color': DARK_THEME['text']}
+                }
+            ),
+            dcc.DatePickerSingle(
+                id={"type": "interval-end", "index": i},
                     date=interval["End"],
-                    style={"marginBottom": "5px"}
-                )
-            ], className="mb-3")
+                    style={
+                        "marginBottom": "5px",
+                        'backgroundColor': DARK_THEME['background'],
+                        'color': DARK_THEME['text'],
+                        'option': {'backgroundColor': DARK_THEME['background'], 'color': DARK_THEME['text']}
+                    }
+            )
+        ], className="mb-3")
             interval_components.append(interval_component)
         
         return True, row["Name"], row["Category"], row["Assigned Owner"], row["Notes"], len(intervals), interval_components, True
@@ -567,7 +693,7 @@ def update_gantt(data, color_by):
         "Category": category_colors,
         "Assigned Owner": owner_colors
     }
-    
+
     fig = px.timeline(
         df,
         x_start="Start",
@@ -582,11 +708,19 @@ def update_gantt(data, color_by):
         title="Move Planning Timeline",
         xaxis_title="Date",
         yaxis_title="Items",
-        height=600,  # Made taller
+        height=600,
         showlegend=True,
-        yaxis={'autorange': 'reversed'},
-        plot_bgcolor='white',
-        paper_bgcolor='white'
+        plot_bgcolor=DARK_THEME['background'],
+        paper_bgcolor=DARK_THEME['background'],
+        font={'color': DARK_THEME['text']},
+        title_font_color=DARK_THEME['text'],
+        legend_font_color=DARK_THEME['text'],
+        xaxis={'gridcolor': DARK_THEME['border'], 'color': DARK_THEME['text']},
+        yaxis={
+            'autorange': 'reversed',
+            'gridcolor': DARK_THEME['border'], 
+            'color': DARK_THEME['text']
+        }
     )
     
     return fig
