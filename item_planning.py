@@ -223,7 +223,7 @@ location_colors = {
     "Sydney": "#99FF99",
     "Uhaul shipping container": "#FFCC99",
     "Sold": "#170215",
-    "Trash": "#808080",
+    "Trash/Donate": "#808080",
     "California": "#FFB366",
     "Baltimore": "#530953",
     "Uncertain": "#E6E6E6",
