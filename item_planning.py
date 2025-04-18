@@ -6,6 +6,13 @@ import plotly.express as px
 import json
 import sqlite3
 from datetime import datetime
+import dash_auth
+import secrets
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # ----------------------------
 # Sample data and default options
@@ -36,6 +43,15 @@ class MoveDatabase:
                     location TEXT,
                     start_date TEXT,
                     end_date TEXT,
+                    FOREIGN KEY (item_id) REFERENCES items (id)
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS notes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    item_id INTEGER,
+                    note_text TEXT,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (item_id) REFERENCES items (id)
                 )
             ''')
@@ -190,16 +206,77 @@ class MoveDatabase:
             cursor.execute('INSERT INTO general_notes (notes) VALUES (?)', (notes,))
             conn.commit()
 
-    def get_notes(self):
+    def get_notes(self, item_id):
+        print(f"Debug - Fetching notes for item {item_id}")  # Debug print
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, note_text, timestamp
+                FROM notes
+                WHERE item_id = ?
+                ORDER BY timestamp DESC
+            ''', (item_id,))
+            notes = cursor.fetchall()
+            print(f"Debug - Found notes: {notes}")  # Debug print
+            return notes
+
+    def create_notes_table(self):
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                CREATE TABLE IF NOT EXISTS general_notes
-                (id INTEGER PRIMARY KEY, notes TEXT)
+                CREATE TABLE IF NOT EXISTS notes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    note_text TEXT,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
             ''')
-            cursor.execute('SELECT notes FROM general_notes LIMIT 1')
-            result = cursor.fetchone()
-            return result[0] if result else ""
+            conn.commit()
+
+    def add_note(self, note_text):
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO notes (note_text)
+                VALUES (?)
+            ''', (note_text,))
+            conn.commit()
+
+    def get_all_notes(self):
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, note_text, timestamp
+                FROM notes
+                ORDER BY timestamp DESC
+            ''')
+            return cursor.fetchall()
+
+    def update_note(self, note_id, new_text):
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE notes
+                SET note_text = ?
+                WHERE id = ?
+            ''', (new_text, note_id))
+            conn.commit()
+
+    def delete_note(self, note_id):
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM notes WHERE id = ?', (note_id,))
+            conn.commit()
+
+    def get_note_by_id(self, note_id):
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, note_text, timestamp
+                FROM notes
+                WHERE id = ?
+            ''', (note_id,))
+            return cursor.fetchone()
 
 db = MoveDatabase()
 
@@ -264,6 +341,70 @@ app = dash.Dash(
     assets_folder='assets',
     serve_locally=True
 )
+server = app.server
+
+# Define valid username/password pairs
+VALID_USERNAME_PASSWORD_PAIRS = {
+    'andy': os.environ.get('ANDY_PASSWORD'),
+    'lucia': os.environ.get('LUCIA_PASSWORD'),
+    'guest': os.environ.get('GUEST_PASSWORD')
+}
+
+# Add authentication
+auth = dash_auth.BasicAuth(
+    app,
+    VALID_USERNAME_PASSWORD_PAIRS
+)
+
+# Main app layout (wrap your existing layout)
+app.layout = html.Div([
+    dcc.Location(id='url', refresh=False),
+    html.Div(id='page-content')
+])
+
+# Authentication callbacks
+@app.callback(
+    [Output('page-content', 'children'),
+     Output('login-status', 'children')],
+    [Input('url', 'pathname'),
+     Input('login-button', 'n_clicks')],
+    [State('username-input', 'value'),
+     State('password-input', 'value')]
+)
+def authenticate(pathname, n_clicks, username, password):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        # Initial load
+        if current_user.is_authenticated:
+            return your_main_layout, ''
+        return login_layout, ''
+    
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    if trigger_id == 'login-button' and username and password:
+        success, token = authenticate_cognito(username, password)
+        if success:
+            login_user(User(username, token))
+            return your_main_layout, ''
+        return login_layout, 'Invalid credentials'
+    
+    if current_user.is_authenticated:
+        return your_main_layout, ''
+    return login_layout, ''
+
+# Protect all callbacks with authentication check
+for callback in app.callback_map:
+    if callback not in ['page-content', 'login-status']:
+        def wrap_callback(callback):
+            def wrapped(*args, **kwargs):
+                if not current_user.is_authenticated:
+                    raise PreventUpdate
+                return callback(*args, **kwargs)
+            return wrapped
+        
+        app.callback_map[callback]['callback'] = wrap_callback(
+            app.callback_map[callback]['callback']
+        )
 
 # Now set the index_string after app is created
 app.index_string = '''
@@ -411,29 +552,20 @@ app.layout = dbc.Container([
             selected_style={'backgroundColor': DARK_THEME['secondary-background'], 'color': DARK_THEME['text']},
             children=[
                 html.Div([
-                    html.Br(),
-                    dbc.Row([
-                        dbc.Col([
-                            dbc.Card([
-                                dbc.CardHeader("General Notes", 
-                                             style={'backgroundColor': DARK_THEME['secondary-background'],
-                                                    'color': DARK_THEME['text']}),
-                                dbc.CardBody([
-                                    dbc.Textarea(
-                                        id="general-notes",
-                                        placeholder="Enter general notes here...",
-                                        style={
-                                            "height": "300px",
-                                            "backgroundColor": DARK_THEME['background'],
-                                            "color": DARK_THEME['text']
-                                        }
-                                    ),
-                                    html.Br(),
-                                    dbc.Button("Save Notes", id="save-notes", color="primary")
-                                ], style={'backgroundColor': DARK_THEME['background']})
-                            ])
-                        ])
-                    ])
+                    html.H3("Notes", style={'color': 'white', 'marginTop': '20px'}),
+                    dbc.Button("Add New Note", id="add-note-button", color="primary", className="mb-3"),
+                    html.Div(id="notes-container", children=[]),
+                    dbc.Modal([
+                        dbc.ModalHeader("Add/Edit Note"),
+                        dbc.ModalBody([
+                            dbc.Textarea(id="note-text-input", placeholder="Enter note here...", rows=3),
+                            dbc.Input(id="current-note-id", type="hidden"),
+                        ]),
+                        dbc.ModalFooter([
+                            dbc.Button("Save", id="save-note-button", color="primary"),
+                            dbc.Button("Close", id="close-note-modal-button", color="secondary"),
+                        ]),
+                    ], id="note-modal"),
                 ])
             ]
         )
@@ -896,6 +1028,120 @@ def handle_notes(n_clicks, notes):
         db.save_notes(notes)
     return db.get_notes()
 
+@app.callback(
+    Output("notes-container", "children"),
+    [Input("save-note-button", "n_clicks"),
+     Input("add-note-button", "n_clicks")],
+    prevent_initial_call=True
+)
+def update_notes_display(save_click, add_click):
+    notes = db.get_all_notes()
+    
+    note_cards = []
+    for note in notes:
+        note_cards.append(
+            dbc.Card(
+                dbc.CardBody([
+                    html.P(note[1], className="card-text"),  # note text
+                    html.Small(
+                        f"Added: {note[2]}",
+                        className="text-muted"
+                    ),
+                    html.Div([
+                        dbc.Button(
+                            "Edit",
+                            id={'type': 'edit-note-button', 'index': note[0]},
+                            color="primary",
+                            size="sm",
+                            className="mr-2"
+                        ),
+                        dbc.Button(
+                            "Delete",
+                            id={'type': 'delete-note-button', 'index': note[0]},
+                            color="danger",
+                            size="sm"
+                        ),
+                    ], className="d-flex justify-content-end gap-2")
+                ]),
+                className="mb-3",
+                style={'backgroundColor': '#32363b', 'color': 'white'}
+            )
+        )
+    
+    if not note_cards:
+        return html.Div("No notes yet. Click 'Add New Note' to create one.", 
+                       style={'color': 'white'})
+    return note_cards
+
+@app.callback(
+    [Output("note-modal", "is_open"),
+     Output("note-text-input", "value"),
+     Output("current-note-id", "value")],
+    [Input("add-note-button", "n_clicks"),
+     Input("close-note-modal-button", "n_clicks"),
+     Input("save-note-button", "n_clicks"),
+     Input({"type": "edit-note-button", "index": ALL}, "n_clicks")],
+    [State("note-text-input", "value"),
+     State("current-note-id", "value")],
+    prevent_initial_call=True
+)
+def handle_note_modal(add_click, close_click, save_click, edit_clicks, 
+                     note_text, current_note_id):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return False, "", None
+    
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    if trigger_id == "add-note-button":
+        return True, "", None
+    elif trigger_id == "close-note-modal-button":
+        return False, "", None
+    elif trigger_id == "save-note-button":
+        if note_text:
+            if current_note_id:
+                db.update_note(current_note_id, note_text)
+            else:
+                db.add_note(note_text)
+        return False, "", None
+    elif "edit-note-button" in trigger_id:
+        note_id = json.loads(trigger_id)['index']
+        note = db.get_note_by_id(note_id)
+        if note:
+            return True, note[1], note[0]
+    
+    return False, "", None
+
+@app.callback(
+    Output("notes-container", "children", allow_duplicate=True),
+    [Input({"type": "delete-note-button", "index": ALL}, "n_clicks")],
+    prevent_initial_call=True
+)
+def delete_note(delete_clicks):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return dash.no_update
+    
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    if "delete-note-button" in trigger_id:
+        note_id = json.loads(trigger_id)['index']
+        db.delete_note(note_id)
+        return update_notes_display(None, None)
+    
+    return dash.no_update
+
+@app.callback(
+    Output("notes-container", "children", allow_duplicate=True),
+    [Input("tasks-table", "selected_rows")],
+    [State("tasks-table", "data")],
+    prevent_initial_call=True
+)
+def refresh_notes_on_selection(selected_rows, data):
+    if selected_rows:
+        return update_notes_display(None, None)
+    return []
+
 if __name__ == '__main__':
+    print(secrets.token_hex(32))
     app.run(debug=True)
 
