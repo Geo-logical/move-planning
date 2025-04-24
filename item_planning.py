@@ -994,6 +994,6 @@ def display_user(pathname):
 
 server = app.server  # 👈 This is what Gunicorn needs
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8050))  # Default to 8051 if PORT not set
-    app.run(debug=True, port=port)
+    #port = int(os.environ.get('PORT', 8050))  # Default to 8051 if PORT not set
+    app.run(debug=True)
 

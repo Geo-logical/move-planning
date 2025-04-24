@@ -15,9 +15,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . .
 
+# Make sure the /data directory exists and move DB there
+RUN mkdir -p /data 
+COPY move_data.db /data/move_data.db
+
 # Expose port
-EXPOSE 8050
+EXPOSE 10000
 
 # Run the app with gunicorn
-CMD ["gunicorn", "-b", "0.0.0.0:8050", "item_planning:server"]
+CMD ["gunicorn", "-b", "0.0.0.0:10000", "item_planning:server"]
 
