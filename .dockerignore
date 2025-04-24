@@ -1,3 +1,65 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
 __pycache__
 *.pyc
+*.pyo
+*.pyd
+.Python
+env
+pip-log.txt
+pip-delete-this-directory.txt
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache
+.mypy_cache
+.hypothesis
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+data/*.db
+*.db
+*.sqlite3
 .env
+.env.*
+!.env.example
+
+# Docker
+Dockerfile
+docker-compose.yml
+.docker
+
+# Documentation
+docs/
+*.md
+LICENSE
+
+# Tests
+tests/
+test/
+
+# Local development
+*.local

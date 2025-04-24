@@ -6,41 +6,92 @@ import plotly.express as px
 import json
 import sqlite3
 from datetime import datetime
+import dash_auth
+from dotenv import load_dotenv
+import os
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Load environment variables
+load_dotenv()
+
+# Define valid username/password pairs from environment variables
+VALID_USERNAME_PASSWORD_PAIRS = {
+    'Andy': os.environ.get('ANDY_PASSWORD'),
+    'Lucia': os.environ.get('LUCIA_PASSWORD'),
+    'Guest': os.environ.get('GUEST_PASSWORD')
+}
+
+# Remove any pairs where password is None or empty
+VALID_USERNAME_PASSWORD_PAIRS = {
+    username: password 
+    for username, password in VALID_USERNAME_PASSWORD_PAIRS.items() 
+    if password is not None and password.strip() != ''
+}
+
+# After loading credentials
+logger.info(f"Loaded {len(VALID_USERNAME_PASSWORD_PAIRS)} valid user(s)")
 
 # ----------------------------
 # Sample data and default options
 # ----------------------------
 class MoveDatabase:
-    def __init__(self, db_path='move_data.db'):
-        self.db_path = db_path
+    def __init__(self):
+        # Define data directory
+        self.data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+        # Create data directory if it doesn't exist
+        os.makedirs(self.data_dir, exist_ok=True)
+        
+        # Set database path inside data directory
+        self.db_path = os.path.join(self.data_dir, 'move_data.db')
+        print(f"Initializing database at: {self.db_path}")
+        
+        # Initialize the database
         self.init_database()
     
     def init_database(self):
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            # Create items table
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS items (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    category TEXT,
-                    assigned_owner TEXT,
-                    notes TEXT
-                )
-            ''')
-            # Create intervals table with foreign key to items
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS intervals (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    item_id INTEGER,
-                    location TEXT,
-                    start_date TEXT,
-                    end_date TEXT,
-                    FOREIGN KEY (item_id) REFERENCES items (id)
-                )
-            ''')
-            conn.commit()
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                self.cursor = conn.cursor()
+                print("Successfully connected to database")
+                self.create_tables()
+                conn.commit()
+        except sqlite3.OperationalError as e:
+            print(f"SQLite operational error: {e}")
+            print(f"Current working directory: {os.getcwd()}")
+            print(f"Data directory path: {self.data_dir}")
+            print(f"Database path: {self.db_path}")
+            raise
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            raise
     
+    def create_tables(self):
+        # Create items table
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                category TEXT,
+                assigned_owner TEXT,
+                notes TEXT
+            )
+        ''')
+        # Create intervals table with foreign key to items
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS intervals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                item_id INTEGER,
+                location TEXT,
+                start_date TEXT,
+                end_date TEXT,
+                FOREIGN KEY (item_id) REFERENCES items (id)
+            )
+        ''')
+
     def add_item(self, name, category, owner, notes, intervals=None):
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
@@ -265,6 +316,16 @@ app = dash.Dash(
     serve_locally=True
 )
 
+# Add authentication
+auth = dash_auth.BasicAuth(
+    app,
+    VALID_USERNAME_PASSWORD_PAIRS
+)
+
+# Add a simple check to ensure credentials are loaded
+if not VALID_USERNAME_PASSWORD_PAIRS:
+    raise ValueError("No valid credentials found in .env file!")
+
 # Now set the index_string after app is created
 app.index_string = '''
 <!DOCTYPE html>
@@ -392,9 +453,9 @@ app.layout = dbc.Container([
                                 value="Location",
                                 clearable=False,
                                 style={
-                                    'backgroundColor': DARK_THEME['background'],
-                                    'color': DARK_THEME['text'],
-                                    'option': {'backgroundColor': DARK_THEME['background'], 'color': DARK_THEME['text']}
+                                    'backgroundColor': 'white',
+                                    'color': 'black',
+                                    'option': {'backgroundColor': DARK_THEME['background'], 'color': 'black'}
                                 },
                             )
                         ], width=3)
@@ -508,7 +569,8 @@ app.layout = dbc.Container([
         ],
         id="modal",
         is_open=False
-    )
+    ),
+    html.Div(id="user-display", style={'color': 'white', 'padding': '10px'})
 ], fluid=True, style={'backgroundColor': DARK_THEME['background'], 'minHeight': '100vh'})
 
 # Separate callback for handling intervals
@@ -896,7 +958,17 @@ def handle_notes(n_clicks, notes):
         db.save_notes(notes)
     return db.get_notes()
 
+@app.callback(
+    Output("user-display", "children"),
+    Input("url", "pathname")
+)
+def display_user(pathname):
+    if auth._username:  # Access the authenticated username
+        return f"Logged in as: {auth._username}"
+    return ""
+
 server = app.server  # 👈 This is what Gunicorn needs
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 8050))  # Default to 8051 if PORT not set
+    app.run(debug=True, port=port)
 
