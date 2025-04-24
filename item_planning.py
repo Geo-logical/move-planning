@@ -896,6 +896,7 @@ def handle_notes(n_clicks, notes):
         db.save_notes(notes)
     return db.get_notes()
 
+server = app.server  # 👈 This is what Gunicorn needs
 if __name__ == '__main__':
     app.run(debug=True)
 
