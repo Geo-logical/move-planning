@@ -15,9 +15,12 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+
 # Load environment variables
 load_dotenv()
 
+#app.server.secret_key = os.environ.get("SECRET_KEY"),
 # Define valid username/password pairs from environment variables
 VALID_USERNAME_PASSWORD_PAIRS = {
     'Andy': os.environ.get('ANDY_PASSWORD'),
@@ -315,6 +318,7 @@ app = dash.Dash(
     assets_folder='assets',
     serve_locally=True
 )
+app.server.secret_key = os.environ.get("SECRET_KEY", "dev-temp-key")
 
 # Add authentication
 auth = dash_auth.BasicAuth(
@@ -785,7 +789,7 @@ def update_gantt(data, color_by):
         title="Move Planning Timeline",
         xaxis_title="Date",
         yaxis_title="Items",
-        height=600,
+        height=700,
         showlegend=True,
         plot_bgcolor=DARK_THEME['background'],
         paper_bgcolor=DARK_THEME['background'],
@@ -801,6 +805,21 @@ def update_gantt(data, color_by):
     )
     
     return fig
+html.Div([
+    dcc.Graph(
+        id='gantt-chart',
+        style={'height': '700px'},  # Fixed height
+        config={
+            'scrollZoom': True,
+            'displayModeBar': True,
+            'modeBarButtonsToAdd': ['zoom', 'pan']
+        }
+    )
+], style={
+    'height': '700px',
+    'overflowY': 'auto',  # Enable vertical scrolling
+    'overflowX': 'hidden'  # Prevent horizontal scrolling
+})
 
 # Update the submit callback to handle the updated data format
 @app.callback(
@@ -882,10 +901,16 @@ def handle_row_deletion(current_data, previous_data):
     
     if len(current_data) < len(previous_data):
         try:
-            # Find the deleted row
-            deleted_row = next(row for row in previous_data if row not in current_data)
+            deleted_row = next(
+                (row for row in previous_data if row not in current_data),
+                None  # fallback so StopIteration isn't raised
+            )
+            if not deleted_row:
+                print("Warning: No deleted row found — mismatch might be due to reordering or duplicate entries.")
+                return no_update
+
             print(f"Attempting to delete: {deleted_row['Name']}")
-            
+
             # Delete from database
             db.delete_item(deleted_row["Name"])
             print(f"Successfully deleted from database: {deleted_row['Name']}")
