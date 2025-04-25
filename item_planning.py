@@ -10,6 +10,7 @@ import dash_auth
 from dotenv import load_dotenv
 import os
 import logging
+from shutil import copyfile
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
