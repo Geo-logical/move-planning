@@ -43,16 +43,23 @@ logger.info(f"Loaded {len(VALID_USERNAME_PASSWORD_PAIRS)} valid user(s)")
 # ----------------------------
 class MoveDatabase:
     def __init__(self):
-        # Define data directory
-        self.data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
-        # Create data directory if it doesn't exist
-        os.makedirs(self.data_dir, exist_ok=True)
-        
-        # Set database path inside data directory
-        self.db_path = os.path.join(self.data_dir, 'move_data.db')
+        # Use persistent /data path on Render, fallback to local path
+        if os.environ.get("RENDER") == "true":
+            self.db_path = "/data/move_data.db"
+            default_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'move_data.db')
+
+            # Ensure /data exists and copy DB if not present
+            if not os.path.exists(self.db_path):
+                print("Copying default DB to /data for persistence")
+                os.makedirs("/data", exist_ok=True)
+                copyfile(default_db_path, self.db_path)
+        else:
+            # Use local path for development
+            self.data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+            os.makedirs(self.data_dir, exist_ok=True)
+            self.db_path = os.path.join(self.data_dir, 'move_data.db')
+
         print(f"Initializing database at: {self.db_path}")
-        
-        # Initialize the database
         self.init_database()
     
     def init_database(self):

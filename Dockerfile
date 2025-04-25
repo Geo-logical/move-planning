@@ -17,7 +17,7 @@ COPY . .
 
 # Make sure the /data directory exists and move DB there
 RUN mkdir -p /data 
-COPY move_data.db /data/move_data.db
+COPY move_data.db move_data.db
 
 # Expose port
 EXPOSE 10000
